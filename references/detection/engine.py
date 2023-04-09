@@ -82,11 +82,14 @@ def evaluate(model, data_loader, device):
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = "Test:"
 
+    predictions = []
+
     coco = get_coco_api_from_dataset(data_loader.dataset)
     iou_types = _get_iou_types(model)
     coco_evaluator = CocoEvaluator(coco, iou_types)
 
     for images, targets in metric_logger.log_every(data_loader, 100, header):
+        #img_log_lst.append(images)
         images = list(img.to(device) for img in images)
 
         if torch.cuda.is_available():
@@ -98,6 +101,8 @@ def evaluate(model, data_loader, device):
         model_time = time.time() - model_time
 
         res = {target["image_id"].item(): output for target, output in zip(targets, outputs)}
+        res_log = [(target["image_id"].item(), target, output, image) for target, output, image in zip(targets, outputs, images)]
+        predictions.append(res_log)
         evaluator_time = time.time()
         coco_evaluator.update(res)
         evaluator_time = time.time() - evaluator_time
@@ -112,4 +117,4 @@ def evaluate(model, data_loader, device):
     coco_evaluator.accumulate()
     coco_evaluator.summarize()
     torch.set_num_threads(n_threads)
-    return coco_evaluator
+    return [coco_evaluator, predictions]
